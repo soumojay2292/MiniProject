@@ -1,0 +1,164 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+<div class="container mt-5">
+    <h1 class="mb-4">Timetable Generator</h1>
+
+    <form method="post">
+        <div class="card mb-4">
+            <div class="card-header">Input Parameters</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Working Days </label>
+                        <input asp-for="TimetableRequest.WorkingDays" class="form-control">
+                        <span asp-validation-for="TimetableRequest.WorkingDays" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">Subjects/Day </label>
+                        <input asp-for="TimetableRequest.SubjectsPerDay" class="form-control">
+                        <span asp-validation-for="TimetableRequest.SubjectsPerDay" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">Total Subjects</label>
+                        <input asp-for="TimetableRequest.TotalSubjects" class="form-control">
+                        <span asp-validation-for="TimetableRequest.TotalSubjects" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4" id="subjectHoursCard" 
+             @* style="@(Model.TimetableRequest.TotalSubjects > 0 ? "" : "display:none")"> *@>
+            <div class="card-header">
+                Subject Hours Distribution 
+                <span class="badge bg-primary" id="totalHoursBadge">
+                    Total: @(Model.TimetableRequest.WorkingDays * Model.TimetableRequest.SubjectsPerDay) hours
+                </span>
+            </div>
+            <div class="card-body">
+                <div id="subjectContainer">
+                    @for (int i = 0; i < Model.TimetableRequest.Subjects.Count; i++)
+                    {
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <input asp-for="TimetableRequest.Subjects[i].Name" 
+                                       class="form-control" placeholder="Subject">
+                                <span asp-validation-for="TimetableRequest.Subjects[i].Name" 
+                                      class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <input asp-for="TimetableRequest.Subjects[i].Hours" 
+                                       class="form-control" placeholder="Hours">
+                                <span asp-validation-for="TimetableRequest.Subjects[i].Hours" 
+                                      class="text-danger"></span>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="alert alert-info mt-3">
+                    Current Total: <span id="currentTotal">0</span> hours
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg">
+                Generate Timetable
+            </button>
+        </div>
+    </form>
+
+    @if (Model.Timetable.Any())
+    {
+        <div class="mt-5">
+            <h3>Generated Timetable</h3>
+            <table class="table table-bordered">
+                <tbody>
+                    @for (int day = 0; day < Model.Timetable.Count; day++)
+                    {
+                        <tr>
+                            <td class="fw-bold">Day @(day + 1)</td>
+                            @foreach (var subject in Model.Timetable[day])
+                            {
+                                <td>@subject</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const totalSubjectsInput = document.querySelector('#TimetableRequest_TotalSubjects');
+            const subjectContainer = document.querySelector('#subjectContainer');
+            const totalHoursBadge = document.querySelector('#totalHoursBadge');
+            const currentTotalSpan = document.querySelector('#currentTotal');
+            const subjectHoursCard = document.querySelector('#subjectHoursCard');
+
+            function updateSubjectFields() {
+                const totalSubjects = parseInt(totalSubjectsInput.value) || 0;
+                const currentSubjects = subjectContainer.children.length;
+                const totalHours = parseInt(document.querySelector('#TimetableRequest_WorkingDays').value || 0) * 
+                                 parseInt(document.querySelector('#TimetableRequest_SubjectsPerDay').value || 0);
+
+                // Update displays
+                totalHoursBadge.textContent = `Total: ${totalHours} hours`;
+                subjectHoursCard.style.display = totalSubjects > 0 ? 'block' : 'none';
+
+                // Update subject fields
+                if (totalSubjects > currentSubjects) {
+                    for (let i = currentSubjects; i < totalSubjects; i++) {
+                        const div = document.createElement('div');
+                        div.className = 'row g-3 mb-3';
+                        div.innerHTML = `
+                            <div class="col-md-6">
+                                <input class="form-control" 
+                                       name="TimetableRequest.Subjects[${i}].Name" 
+                                       placeholder="Subject name">
+                            </div>
+                            <div class="col-md-6">
+                                <input class="form-control" 
+                                       name="TimetableRequest.Subjects[${i}].Hours" 
+                                       type="number" 
+                                       placeholder="Hours"
+                                       oninput="updateCurrentTotal()">
+                            </div>
+                        `;
+                        subjectContainer.appendChild(div);
+                    }
+                } else {
+                    while (subjectContainer.children.length > totalSubjects) {
+                        subjectContainer.lastChild.remove();
+                    }
+                }
+                updateCurrentTotal();
+            }
+
+            window.updateCurrentTotal = function() {
+                const inputs = document.querySelectorAll('[name$="Hours"]');
+                let total = 0;
+                inputs.forEach(input => total += parseInt(input.value) || 0);
+                currentTotalSpan.textContent = total;
+            };
+
+            // Event listeners
+            document.querySelector('#TimetableRequest_WorkingDays').addEventListener('input', updateSubjectFields);
+            document.querySelector('#TimetableRequest_SubjectsPerDay').addEventListener('input', updateSubjectFields);
+            totalSubjectsInput.addEventListener('input', updateSubjectFields);
+            
+            // Initial setup
+            updateSubjectFields();
+        });
+    </script>
+}
